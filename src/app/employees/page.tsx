@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 interface Employee {
   id?: number;
@@ -18,89 +17,98 @@ export default function EmployeesPage() {
     name: '',
     code: '',
     designation: '',
-    bps: 1,
+    bps: 0,
   });
   const [editingEmployee, setEditingEmployee] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch employees data from API
   useEffect(() => {
-    fetch('/api/employees')
-      .then((response) => response.json())
-      .then((data: Employee[]) => setEmployees(data))
-      .catch((error) => console.error('Error fetching employees:', error));
+    fetchEmployees();
   }, []);
 
-  // Filter employees based on search term
-  const filteredEmployees = employees.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.designation.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchEmployees = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/employees');
+      if (!response.ok) {
+        throw new Error('Failed to fetch employees');
+      }
+      const data: Employee[] = await response.json();
+      setEmployees(data);
+    } catch (error) {
+      setError('Error fetching employees. Please try again.');
+      console.error('Error fetching employees:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  // Validate form data
+  const updateDashboard = async () => {
+    try {
+      await fetch('/api/dashboard/update', { method: 'POST' });
+    } catch (error) {
+      console.error('Error updating dashboard:', error);
+    }
+  };
+
   const validateForm = (): boolean => {
     const { name, code, designation, bps } = newEmployee;
     if (!name || !code || !designation || bps < 1) {
-      alert('Please fill out all required fields.');
+      setError('Please fill out all required fields.');
       return false;
     }
     return true;
   };
 
-  // Save employee (add or update)
-  const saveEmployee = (): void => {
+  const saveEmployee = async (): Promise<void> => {
     if (!validateForm()) return;
 
-    if (editingEmployee !== null) {
-      // Update existing employee
-      fetch(`/api/employees?id=${editingEmployee}`, {
-        method: 'PUT',
+    try {
+      const url = editingEmployee !== null ? `/api/employees?id=${editingEmployee}` : '/api/employees';
+      const method = editingEmployee !== null ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newEmployee),
-      })
-        .then((response) => response.json())
-        .then((updatedEmployee: Employee) => {
-          setEmployees(
-            employees.map((employee) =>
-              employee.id === editingEmployee ? updatedEmployee : employee
-            )
-          );
-          resetForm();
-        })
-        .catch((error) => console.error('Error updating employee:', error));
-    } else {
-      // Add new employee
-      fetch('/api/employees', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newEmployee),
-      })
-        .then((response) => response.json())
-        .then((newEmployee: Employee) => {
-          setEmployees([...employees, newEmployee]);
-          resetForm();
-        })
-        .catch((error) => console.error('Error adding employee:', error));
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save employee');
+      }
+
+      const savedEmployee: Employee = await response.json();
+
+      if (editingEmployee !== null) {
+        setEmployees(employees.map((employee) =>
+          employee.id === editingEmployee ? savedEmployee : employee
+        ));
+      } else {
+        setEmployees([...employees, savedEmployee]);
+      }
+
+      resetForm();
+      await updateDashboard();
+    } catch (error) {
+      setError('Error saving employee. Please try again.');
+      console.error('Error saving employee:', error);
     }
   };
 
-  // Reset form after adding or updating
   const resetForm = (): void => {
     setNewEmployee({
       name: '',
       code: '',
       designation: '',
-      bps: 1,
+      bps: 0,
     });
     setEditingEmployee(null);
+    setError(null);
   };
 
-  // Edit employee
   const editEmployee = (id: number): void => {
     const employee = employees.find((emp) => emp.id === id);
     if (employee) {
@@ -109,22 +117,47 @@ export default function EmployeesPage() {
     }
   };
 
-  // Delete employee
-  const deleteEmployee = (id: number): void => {
+  const deleteEmployee = async (id: number): Promise<void> => {
     if (confirm('Are you sure you want to delete this employee?')) {
-      fetch(`/api/employees?id=${id}`, {
-        method: 'DELETE',
-      })
-        .then(() => {
-          setEmployees(employees.filter((employee) => employee.id !== id));
-        })
-        .catch((error) => console.error('Error deleting employee:', error));
+      try {
+        const response = await fetch(`/api/employees?id=${id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete employee');
+        }
+
+        setEmployees(employees.filter((employee) => employee.id !== id));
+        await updateDashboard();
+      } catch (error) {
+        setError('Error deleting employee. Please try again.');
+        console.error('Error deleting employee:', error);
+      }
     }
   };
 
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.designation.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return <div className="text-center mt-8">Loading...</div>;
+  }
+
   return (
-    <div className="container mx-auto">
-      <h1 className="text-3xl font-bold mb-4">Employees</h1>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold">Employees</h1>
+      </div>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
       <input
         type="text"
         placeholder="Search by name, code, or designation"
@@ -132,7 +165,7 @@ export default function EmployeesPage() {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
-      <div className="mb-4 p-4 border rounded">
+      <div className="mb-4 p-4 border rounded bg-gray-50">
         <h2 className="text-xl font-bold mb-2">
           {editingEmployee !== null ? 'Edit Employee' : 'Add New Employee'}
         </h2>
@@ -174,14 +207,14 @@ export default function EmployeesPage() {
         />
         <button
           onClick={saveEmployee}
-          className="p-2 bg-blue-500 text-white rounded w-full"
+          className="p-2 bg-blue-500 text-white rounded w-full hover:bg-blue-600 transition"
         >
           {editingEmployee !== null ? 'Update Employee' : 'Add Employee'}
         </button>
         {editingEmployee !== null && (
           <button
             onClick={resetForm}
-            className="p-2 bg-gray-500 text-white rounded w-full mt-2"
+            className="p-2 bg-gray-500 text-white rounded w-full mt-2 hover:bg-gray-600 transition"
           >
             Cancel Edit
           </button>
@@ -189,8 +222,8 @@ export default function EmployeesPage() {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white">
-          <thead>
+        <table className="min-w-full bg-white border border-gray-300">
+          <thead className="bg-gray-100">
             <tr>
               <th className="p-3 border">Code</th>
               <th className="p-3 border">Name</th>
@@ -201,7 +234,7 @@ export default function EmployeesPage() {
           </thead>
           <tbody>
             {filteredEmployees.map((employee) => (
-              <tr key={employee.id}>
+              <tr key={employee.id} className="hover:bg-gray-50">
                 <td className="p-3 border">{employee.code}</td>
                 <td className="p-3 border">{employee.name}</td>
                 <td className="p-3 border">{employee.designation}</td>
@@ -209,21 +242,16 @@ export default function EmployeesPage() {
                 <td className="p-3 border">
                   <button
                     onClick={() => editEmployee(employee.id!)}
-                    className="text-blue-500 hover:underline"
+                    className="text-blue-500 hover:underline mr-2"
                   >
                     Edit
                   </button>
-                  {' | '}
                   <button
                     onClick={() => deleteEmployee(employee.id!)}
-                    className="text-red-500 hover:underline"
+                    className="text-red-500 hover:underline mr-2"
                   >
                     Delete
                   </button>
-                  {' | '}
-                  <Link href={`/employees/${employee.id}`} className="text-primary hover:underline">
-                    View
-                  </Link>
                 </td>
               </tr>
             ))}

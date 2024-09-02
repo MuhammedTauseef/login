@@ -27,6 +27,11 @@ export async function POST(request) {
       status,
     } = body;
 
+    // BPS validation
+    if (isNaN(bps) || bps < 1 || bps > 22) {
+      return NextResponse.json({ error: 'BPS must be a number between 1 and 22' }, { status: 400 });
+    }
+
     const [result] = await db.query(
       'INSERT INTO attendance (employeeCode, name, designation, cnic, bps, checkIn, checkOut, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [employeeCode, name, designation, cnic, bps, checkIn, checkOut, status]
@@ -71,6 +76,11 @@ export async function PUT(request) {
       status,
     } = body;
 
+    // BPS validation
+    if (isNaN(bps) || bps < 1 || bps > 22) {
+      return NextResponse.json({ error: 'BPS must be a number between 1 and 22' }, { status: 400 });
+    }
+
     const [result] = await db.query(
       'UPDATE attendance SET employeeCode = ?, name = ?, designation = ?, cnic = ?, bps = ?, checkIn = ?, checkOut = ?, status = ? WHERE id = ?',
       [employeeCode, name, designation, cnic, bps, checkIn, checkOut, status, id]
@@ -106,12 +116,11 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 });
     }
 
-    const [result] = await db.query('DELETE FROM attendance WHERE id = ?', [id]);
+    const [result] = await db.query(`DELETE FROM attendance WHERE id = ?`, [id]);
 
     if (result.affectedRows === 0) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
-
     return NextResponse.json({ message: 'Record deleted successfully' }, { status: 200 });
   } catch (error) {
     console.error('Error deleting attendance record:', error);

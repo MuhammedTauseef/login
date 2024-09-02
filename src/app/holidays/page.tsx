@@ -60,15 +60,22 @@ export default function HolidaysPage() {
     }
   };
 
+  
   // Delete a holiday from the API
   const deleteHoliday = async (id: number) => {
     try {
       const res = await fetch(`/api/holidays/${id}`, {
         method: 'DELETE',
       });
-
+  
       if (res.ok) {
-        setHolidays(holidays.filter(holiday => holiday.id !== id));
+        const result = await res.json();
+        if (result.message) {
+          console.log(result.message); // Log success message if needed
+          setHolidays(holidays.filter(holiday => holiday.id !== id));
+        } else if (result.error) {
+          console.error('Failed to delete holiday:', result.error);
+        }
       } else {
         const error = await res.json();
         console.error('Failed to delete holiday:', error.message);
@@ -77,6 +84,8 @@ export default function HolidaysPage() {
       console.error('Error deleting holiday:', error);
     }
   };
+  
+
 
   // Handle changes in the holiday name input field
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,7 +139,9 @@ export default function HolidaysPage() {
             {holidays.map((holiday) => (
               <tr key={holiday.id}>
                 <td className="p-3 border">{holiday.name}</td>
-                <td className="p-3 border">{format(new Date(holiday.date), 'MMMM dd, yyyy')}</td>
+                <td className="p-3 border">
+                  {format(new Date(holiday.date), 'MMMM dd, yyyy')}
+                </td>
                 <td className="p-3 border">
                   <button
                     onClick={() => deleteHoliday(holiday.id)}

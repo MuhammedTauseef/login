@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 
-// Define types for the attendance data and the new employee form
 interface AttendanceRecord {
   id?: number;
   employeeCode: string;
@@ -24,82 +23,110 @@ export default function AttendancePage() {
     name: '',
     designation: '',
     cnic: '',
-    bps: 1,
+    bps: 1, // Default BPS value
     checkIn: '',
     checkOut: null,
     status: 'Present',
   });
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedBpsGroup, setSelectedBpsGroup] = useState<string>('All');
   const [editingEmployee, setEditingEmployee] = useState<number | null>(null);
 
-  // Fetch attendance data from API
   useEffect(() => {
-    fetch('/api/attendance')
-      .then((response) => response.json())
-      .then((data: AttendanceRecord[]) => setAttendanceData(data))
-      .catch((error) => console.error('Error fetching attendance data:', error));
+    fetchAttendanceData();
   }, []);
 
-  // Validate form data
+  const fetchAttendanceData = async () => {
+    try {
+      const response = await fetch('/api/attendance');
+      const data: AttendanceRecord[] = await response.json();
+      setAttendanceData(data);
+      updateDashboardData(data);
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+    }
+  };
+
+  const updateDashboardData = async (data: AttendanceRecord[]) => {
+    try {
+      await fetch('/api/update-dashboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          present: data.filter(record => record.status === 'Present').length,
+          late: data.filter(record => record.status === 'Late').length,
+        }),
+      });
+    } catch (error) {
+      console.error('Error updating dashboard data:', error);
+    }
+  };
+
   const validateForm = () => {
     const { employeeCode, name, designation, cnic, bps, checkIn } = newEmployee;
-    if (!employeeCode || !name || !designation || !cnic || !bps || !checkIn) {
+    if (!employeeCode || !name || !designation || !cnic || !checkIn) {
       alert('Please fill out all required fields.');
+      return false;
+    }
+    if (isNaN(Number(employeeCode))) {
+      alert('Employee Code must be a number.');
+      return false;
+    }
+    if (!/^\d{5}-\d{7}-\d{1,}$/.test(cnic)) {
+      alert('CNIC must be in the format XXXX-XXXXXXX-X.');
+      return false;
+    }
+    if (isNaN(bps) || bps < 1 || bps > 22) {
+      alert('BPS must be a number between 1 and 22.');
       return false;
     }
     return true;
   };
 
-  // Add or update employee attendance record
-  const saveEmployee = () => {
+  const saveEmployee = async () => {
     if (!validateForm()) return;
 
-    if (editingEmployee !== null) {
-      // Update existing record
-      fetch(`/api/attendance?id=${editingEmployee}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newEmployee),
-      })
-        .then((response) => response.json())
-        .then((updatedRecord: AttendanceRecord) => {
-          setAttendanceData(
-            attendanceData.map((record) =>
-              record.id === editingEmployee ? updatedRecord : record
-            )
-          );
-          resetForm();
-        })
-        .catch((error) => console.error('Error updating employee:', error));
-    } else {
-      // Add new record
-      fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newEmployee),
-      })
-        .then((response) => response.json())
-        .then((data: AttendanceRecord) => {
-          setAttendanceData([...attendanceData, data]);
-          resetForm();
-        })
-        .catch((error) => console.error('Error adding employee:', error));
+    try {
+      if (editingEmployee !== null) {
+        const response = await fetch(`/api/attendance?id=${editingEmployee}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newEmployee),
+        });
+        const updatedRecord: AttendanceRecord = await response.json();
+        setAttendanceData(
+          attendanceData.map((record) =>
+            record.id === editingEmployee ? updatedRecord : record
+          )
+        );
+      } else {
+        const response = await fetch('/api/attendance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(newEmployee),
+        });
+        const data: AttendanceRecord = await response.json();
+        setAttendanceData([...attendanceData, data]);
+      }
+      resetForm();
+      updateDashboardData(attendanceData);
+    } catch (error) {
+      console.error('Error saving employee:', error);
     }
   };
 
-  // Reset form after adding or updating
   const resetForm = () => {
     setNewEmployee({
       employeeCode: '',
       name: '',
       designation: '',
       cnic: '',
-      bps: 1,
+      bps: 1, // Reset to default value
       checkIn: '',
       checkOut: null,
       status: 'Present',
@@ -107,7 +134,6 @@ export default function AttendancePage() {
     setEditingEmployee(null);
   };
 
-  // Edit employee record
   const editEmployee = (id: number) => {
     const employee = attendanceData.find((record) => record.id === id);
     if (employee) {
@@ -116,20 +142,21 @@ export default function AttendancePage() {
     }
   };
 
-  // Delete employee record
-  const deleteEmployee = (id: number) => {
+  const deleteEmployee = async (id: number) => {
     if (confirm('Are you sure you want to delete this record?')) {
-      fetch(`/api/attendance/${id}`, {
-        method: 'DELETE',
-      })
-        .then(() => {
-          setAttendanceData(attendanceData.filter((record) => record.id !== id));
-        })
-        .catch((error) => console.error('Error deleting employee:', error));
+      try {
+        await fetch(`/api/attendance?id=${id}`, {
+          method: 'DELETE',
+        });
+        const updatedData = attendanceData.filter((record) => record.id !== id);
+        setAttendanceData(updatedData);
+        updateDashboardData(updatedData);
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+      }
     }
   };
 
-  // Filtered Data based on search and BPS group
   const filteredData = attendanceData.filter((record) => {
     const matchesSearchTerm =
       searchTerm === '' ||
@@ -138,14 +165,7 @@ export default function AttendancePage() {
       record.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.cnic.includes(searchTerm);
 
-    const matchesBpsGroup =
-      selectedBpsGroup === 'All' ||
-      (selectedBpsGroup === 'BPS 1-16' && record.bps <= 16) ||
-      (selectedBpsGroup === 'BPS 17' && record.bps === 17) ||
-      (selectedBpsGroup === 'BPS 18' && record.bps === 18) ||
-      (selectedBpsGroup === 'BPS 19-21' && record.bps >= 19 && record.bps <= 21);
-
-    return matchesSearchTerm && matchesBpsGroup;
+    return matchesSearchTerm;
   });
 
   return (
@@ -168,7 +188,7 @@ export default function AttendancePage() {
         </button>
       </div>
 
-      {/* Search and Filter */}
+      {/* Search */}
       <div className="mb-4 p-4 border rounded">
         <input
           type="text"
@@ -177,17 +197,6 @@ export default function AttendancePage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="p-2 mb-2 border rounded w-full"
         />
-        <select
-          value={selectedBpsGroup}
-          onChange={(e) => setSelectedBpsGroup(e.target.value)}
-          className="p-2 mb-2 border rounded w-full"
-        >
-          <option value="All">All BPS</option>
-          <option value="BPS 1-16">BPS 1-16</option>
-          <option value="BPS 17">BPS 17</option>
-          <option value="BPS 18">BPS 18</option>
-          <option value="BPS 19-21">BPS 19-21</option>
-        </select>
       </div>
 
       {/* Add Employee Form */}
@@ -222,20 +231,22 @@ export default function AttendancePage() {
         />
         <input
           type="text"
-          placeholder="CNIC"
+          placeholder="CNIC (XXXX-XXXXXXX-X)"
           value={newEmployee.cnic}
           onChange={(e) => setNewEmployee({ ...newEmployee, cnic: e.target.value })}
           className="p-2 mb-2 border rounded w-full"
         />
-        <input
-          type="number"
-          placeholder="BPS"
+        <select
           value={newEmployee.bps}
-          onChange={(e) =>
-            setNewEmployee({ ...newEmployee, bps: parseInt(e.target.value) })
-          }
+          onChange={(e) => setNewEmployee({ ...newEmployee, bps: Number(e.target.value) })}
           className="p-2 mb-2 border rounded w-full"
-        />
+        >
+          {[...Array(22).keys()].map(i => (
+            <option key={i + 1} value={i + 1}>
+              BPS {i + 1}
+            </option>
+          ))}
+        </select>
         <input
           type="datetime-local"
           placeholder="Check In"
@@ -266,7 +277,6 @@ export default function AttendancePage() {
           <option value="Late">Late</option>
           <option value="Absent">Absent</option>
         </select>
-
         <button
           onClick={saveEmployee}
           className="p-2 bg-blue-500 text-white rounded w-full"
@@ -306,7 +316,7 @@ export default function AttendancePage() {
                 <td className="p-3 border">{record.name}</td>
                 <td className="p-3 border">{record.designation}</td>
                 <td className="p-3 border">{record.cnic}</td>
-                <td className="p-3 border">{record.bps}</td>
+                <td className="p-3 border">BPS {record.bps}</td>
                 <td className="p-3 border">
                   {record.checkIn ? format(new Date(record.checkIn), 'yyyy-MM-dd HH:mm:ss') : '-'}
                 </td>

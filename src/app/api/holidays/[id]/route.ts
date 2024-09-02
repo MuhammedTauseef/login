@@ -42,3 +42,28 @@ export async function GET() {
   }
 }
 
+// DELETE /api/holidays/[id]
+export async function DELETE(request: NextRequest) {
+    try {
+      const url = new URL(request.url);
+      const id = url.pathname.split('/').pop(); // Extract ID from URL path
+  
+      if (!id) {
+        return NextResponse.json({ error: 'Holiday ID is required' }, { status: 400 });
+      }
+  
+      const [result] = await db.query<ResultSetHeader>(
+        'DELETE FROM holidays WHERE id = ?',
+        [id]
+      );
+  
+      if (result.affectedRows === 0) {
+        return NextResponse.json({ error: 'Holiday not found' }, { status: 404 });
+      }
+  
+      return NextResponse.json({ message: 'Holiday deleted successfully' }, { status: 200 });
+    } catch (error) {
+      console.error('Error deleting holiday:', error);
+      return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+  }
