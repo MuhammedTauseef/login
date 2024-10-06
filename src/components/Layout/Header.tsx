@@ -1,4 +1,4 @@
-// components/Layout/Header.tsx
+
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +7,7 @@ import Link from 'next/link';
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Function to toggle mobile menu
+  // موبائل مینو کو ٹوگل کرنے کا فنکشن
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
@@ -15,12 +15,12 @@ const Header = () => {
   return (
     <header className="bg-blue-500 text-white">
       <nav className="container mx-auto flex justify-between items-center p-4">
-        {/* Logo */}
+        {/* لوگو */}
         <Link href="/" className="text-2xl font-bold">
           FGEHA Attendance
         </Link>
 
-        {/* Desktop Menu */}
+        {/* ڈیسک ٹاپ مینو */}
         <ul className="hidden md:flex space-x-6">
           <li>
             <Link href="/dashboard" className="hover:text-gray-300">
@@ -54,36 +54,54 @@ const Header = () => {
           </li>
         </ul>
 
-        {/* Hamburger Menu Button */}
+        {/* ہیمبرگر مینو بٹن */}
         <button
           className="md:hidden focus:outline-none"
           onClick={toggleMobileMenu}
           aria-label="Toggle Menu"
         >
-          {/* Hamburger Icon */}
+          {/* ہیمبرگر آئیکون */}
           <svg
-            className="h-6 w-6 fill-current"
+            className="h-6 w-6 stroke-current"
             viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
             {mobileMenuOpen ? (
-              // Close Icon
+              // کلوز آئیکون
               <path
-                fillRule="evenodd"
-                clipRule="evenodd"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
                 d="M6 18L18 6M6 6l12 12"
               />
             ) : (
-              // Hamburger Icon
-              <path
-                fillRule="evenodd"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
+              // ہیمبرگر آئیکون
+              <>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 12h16"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 18h16"
+                />
+              </>
             )}
           </svg>
         </button>
       </nav>
 
-      {/* Mobile Menu */}
+      {/* موبائل مینو */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-blue-600">
           <ul className="flex flex-col space-y-2 p-4">
