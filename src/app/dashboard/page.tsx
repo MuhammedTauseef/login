@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx 
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,18 +7,20 @@ import Link from 'next/link';
 interface DashboardData {
   totalEmployees: number;
   present: number;
-  onLeave: number;
+  absent: number;
   lateArrivals: number;
   upcomingHolidays: number;
+  totalLeaves: number; // نیا فیلڈ شامل کیا گیا
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>({
     totalEmployees: 0,
     present: 0,
-    onLeave: 0,
+    absent: 0,
     lateArrivals: 0,
     upcomingHolidays: 0,
+    totalLeaves: 0, // نیا فیلڈ شامل کیا گیا
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +45,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-
-    // Set up interval to fetch data every 30 seconds
-    const intervalId = setInterval(fetchDashboardData, 30000);
-
-    // Clean up interval on component unmount
+    const intervalId = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
     return () => clearInterval(intervalId);
   }, []);
 
@@ -60,21 +59,22 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <h1 className="text-2xl md:text-3xl font-bold mb-4">Dashboard</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <DashboardCard title="Total Employees" value={data.totalEmployees} link="/employees" />
         <DashboardCard title="Present" value={data.present} link="/attendance" />
-        <DashboardCard title="On Leave" value={data.onLeave} link="/leave" />
+        <DashboardCard title="Absent" value={data.absent} link="/attendance" />
         <DashboardCard title="Late Arrivals" value={data.lateArrivals} link="/attendance" />
         <DashboardCard title="Upcoming Holidays" value={data.upcomingHolidays} link="/holidays" />
+        <DashboardCard title="Total Leaves" value={data.totalLeaves} link="/leave" /> {/* نیا DashboardCard شامل کیا گیا */}
       </div>
     </div>
   );
 }
 
 const DashboardCard = ({ title, value, link }: { title: string; value: number; link: string }) => (
-  <Link href={link} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition">
-    <h2 className="text-xl font-semibold mb-2">{title}</h2>
-    <p className="text-3xl font-bold text-primary">{value}</p>
+  <Link href={link} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition block">
+    <h2 className="text-lg md:text-xl font-semibold mb-2">{title}</h2>
+    <p className="text-2xl md:text-3xl font-bold text-primary">{value}</p>
   </Link>
 );

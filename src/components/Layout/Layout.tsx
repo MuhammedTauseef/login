@@ -1,6 +1,7 @@
 // app/layout.tsx
 import './globals.css';
 import Header from '@/components/Layout/Header';
+import Sidebar from '@/components/Layout/Sidebar';
 import Footer from '@/components/Layout/Footer';
 
 export const metadata = {
@@ -17,9 +18,12 @@ export default function RootLayout({
     <html lang="en">
       <body className="flex flex-col min-h-screen">
         <Header />
-        <main className="flex-1 p-4 container mx-auto">
-          {children}
-        </main>
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 p-4 container mx-auto">
+            {children}
+          </main>
+        </div>
         <Footer />
       </body>
     </html>

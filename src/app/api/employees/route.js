@@ -1,95 +1,246 @@
-import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+// src/app/api/employees/route.js
 
-// GET /api/employees
+import db from '@/lib/db';
+import { NextResponse } from 'next/server';
+
+// Define allowed fields for operations
+const allowedFields = [
+  'USERID', // Included in POST for creation, excluded in PUT for updates
+  'Badgenumber',
+  'SSN',
+  'Name',
+  'Gender',
+  'TITLE',
+  'PAGER',
+  'BIRTHDAY',
+  'HIREDDAY',
+  'street',
+  'CITY',
+  'STATE',
+  'ZIP',
+  'OPHONE',
+  'FPHONE',
+  'VERIFICATIONMETHOD',
+  'DEFAULTDEPTID',
+  'SECURITYFLAGS',
+  'ATT',
+  'INLATE',
+  'OUTEARLY',
+  'OVERTIME',
+  'SEP',
+  'HOLIDAY',
+  'MINZU',
+  'PASSWORD',
+  'LUNCHDURATION',
+  'Notes',
+  'privilege',
+  'InheritDeptSch',
+  'InheritDeptSchClass',
+  'AutoSchPlan',
+  'MinAutoSchInterval',
+  'RegisterOT',
+  'InheritDeptRule',
+  'EMPRIVILEGE',
+  'CardNo',
+  'FaceGroup',
+  'AccGroup',
+  'UseAccGroupTZ',
+  'VerifyCode',
+  'Expires',
+  'ValidCount',
+  'ValidTimeBegin',
+  'ValidTimeEnd',
+  'TimeZone1',
+  'TimeZone2',
+  'TimeZone3',
+  'Pin1',
+];
+
+// GET: Fetch all employees
 export async function GET(request) {
   try {
     const [rows] = await db.query('SELECT * FROM employees');
-    return NextResponse.json(rows, { status: 200 });
+    return NextResponse.json(rows);
   } catch (error) {
     console.error('Error fetching employees:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error fetching employees' },
+      { status: 500 }
+    );
   }
 }
 
-// POST /api/employees
+// POST: Add a new employee
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { name, code, designation, bps } = body;
+    const employee = await request.json();
+    const fields = Object.keys(employee);
+    const values = Object.values(employee);
 
-    const [result] = await db.query(
-      'INSERT INTO employees (name, code, designation, bps) VALUES (?, ?, ?, ?)',
-      [name, code, designation, bps]
+    // Filter out any unexpected fields
+    const sanitizedFields = fields.filter((field) =>
+      allowedFields.includes(field)
     );
 
-    const newEmployee = {
-      id: result.insertId,
-      name,
-      code,
-      designation,
-      bps,
-    };
+    if (sanitizedFields.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields provided for employee creation' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(newEmployee, { status: 201 });
+    const sanitizedValues = sanitizedFields.map((field) => employee[field]);
+    const sanitizedPlaceholders = sanitizedFields.map(() => '?').join(', ');
+
+    const sql = `INSERT INTO employees (${sanitizedFields.join(
+      ', '
+    )}) VALUES (${sanitizedPlaceholders})`;
+
+    const [result] = await db.query(sql, sanitizedValues);
+
+    // Fetch the inserted employee
+    let fetchedEmployee;
+    if (employee.USERID) {
+      // If USERID is provided, fetch by USERID
+      const [rows] = await db.query('SELECT * FROM employees WHERE USERID = ?', [
+        employee.USERID,
+      ]);
+      fetchedEmployee = rows[0];
+    } else {
+      // Otherwise, fetch by auto-generated ID
+      const [rows] = await db.query('SELECT * FROM employees WHERE USERID = ?', [
+        result.insertId,
+      ]);
+      fetchedEmployee = rows[0];
+    }
+
+    return NextResponse.json(fetchedEmployee, { status: 201 });
   } catch (error) {
-    console.error('Error creating employee:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Error adding employee:', error);
+    return NextResponse.json(
+      { error: 'Error adding employee' },
+      { status: 500 }
+    );
   }
 }
 
-// PUT /api/employees
+// PUT: Update an existing employee
 export async function PUT(request) {
   try {
-    const id = request.nextUrl.searchParams.get('id');
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const employee = await request.json();
+
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Employee ID is required' },
+        { status: 400 }
+      );
     }
 
-    const body = await request.json();
-    const { name, code, designation, bps } = body;
+    const fields = Object.keys(employee);
 
-    const [result] = await db.query(
-      'UPDATE employees SET name = ?, code = ?, designation = ?, bps = ? WHERE id = ?',
-      [name, code, designation, bps, id]
+    // Exclude 'USERID' from allowedFields for updates
+    const updateAllowedFields = allowedFields.filter((field) => field !== 'USERID');
+
+    const sanitizedFields = fields.filter((field) =>
+      updateAllowedFields.includes(field)
     );
+    const sanitizedValues = sanitizedFields.map((field) => employee[field]);
 
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+    if (sanitizedFields.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields provided for update' },
+        { status: 400 }
+      );
     }
 
-    const updatedEmployee = {
-      id,
-      name,
-      code,
-      designation,
-      bps,
-    };
+    const fieldAssignments = sanitizedFields.map((field) => `${field} = ?`);
+    const sql = `UPDATE employees SET ${fieldAssignments.join(
+      ', '
+    )} WHERE USERID = ?`;
 
-    return NextResponse.json(updatedEmployee, { status: 200 });
+    await db.query(sql, [...sanitizedValues, id]);
+
+    // Fetch the updated employee
+    const [rows] = await db.query('SELECT * FROM employees WHERE USERID = ?', [
+      id,
+    ]);
+
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Employee not found after update' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(rows[0]);
   } catch (error) {
     console.error('Error updating employee:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error updating employee' },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE /api/employees
+// DELETE: Delete an employee or bulk delete
 export async function DELETE(request) {
   try {
-    const id = request.nextUrl.searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (request.method === 'DELETE' && !id) {
+      // Handle bulk delete
+      const { ids } = await request.json();
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return NextResponse.json(
+          { error: 'No employee IDs provided for deletion' },
+          { status: 400 }
+        );
+      }
+
+      // Ensure all IDs are valid (e.g., integers or strings as per your schema)
+      const sanitizedIds = ids.filter((id) => typeof id === 'string' || typeof id === 'number');
+
+      if (sanitizedIds.length === 0) {
+        return NextResponse.json(
+          { error: 'No valid employee IDs provided for deletion' },
+          { status: 400 }
+        );
+      }
+
+      const placeholders = sanitizedIds.map(() => '?').join(', ');
+      const sql = `DELETE FROM employees WHERE USERID IN (${placeholders})`;
+
+      await db.query(sql, sanitizedIds);
+
+      return NextResponse.json({ message: 'Employees deleted successfully' });
     }
 
-    const [result] = await db.query('DELETE FROM employees WHERE id = ?', [id]);
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Employee ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const [result] = await db.query('DELETE FROM employees WHERE USERID = ?', [id]);
 
     if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Record not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ message: 'Employee deleted successfully' }, { status: 200 });
+    return NextResponse.json({ message: 'Employee deleted successfully' });
   } catch (error) {
-    console.error('Error deleting employee:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Error deleting employee(s):', error);
+    return NextResponse.json(
+      { error: 'Error deleting employee(s)' },
+      { status: 500 }
+    );
   }
 }
