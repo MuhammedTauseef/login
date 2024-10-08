@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx 
+// app/dashboard/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -65,14 +65,22 @@ export default function DashboardPage() {
         <DashboardCard title="Present" value={data.present} link="/attendance" />
         <DashboardCard title="Absent" value={data.absent} link="/attendance" />
         <DashboardCard title="Late Arrivals" value={data.lateArrivals} link="/attendance" />
-        <DashboardCard title="Upcoming Holidays" value={data.upcomingHolidays} link="/holidays" />
+        <DashboardCard title="Holidays" value={data.upcomingHolidays} link="/holidays" />
         <DashboardCard title="Total Leaves" value={data.totalLeaves} link="/leave" /> {/* نیا DashboardCard شامل کیا گیا */}
       </div>
     </div>
   );
 }
 
-const DashboardCard = ({ title, value, link }: { title: string; value: number; link: string }) => (
+const DashboardCard = ({
+  title,
+  value,
+  link,
+}: {
+  title: string;
+  value: number;
+  link: string;
+}) => (
   <Link href={link} className="bg-white shadow rounded-lg p-6 hover:shadow-lg transition block">
     <h2 className="text-lg md:text-xl font-semibold mb-2">{title}</h2>
     <p className="text-2xl md:text-3xl font-bold text-primary">{value}</p>

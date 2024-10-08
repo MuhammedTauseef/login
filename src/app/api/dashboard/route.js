@@ -1,15 +1,14 @@
 // app/api/dashboard/route.js
-
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
 export async function GET() {
   try {
-    // کل ملازمین کی تعداد حاصل کریں
+    // Get the total number of employees
     const [totalEmployeesResult] = await db.query('SELECT COUNT(*) as total FROM employees');
     const totalEmployees = totalEmployeesResult[0].total;
 
-    // آج چیک ان اور چیک آؤٹ کرنے والے ملازمین کی تعداد حاصل کریں
+    // Get the number of employees who checked in and out today
     const [presentResult] = await db.query(`
       SELECT COUNT(DISTINCT ci.USERID) as present
       FROM CHECKINOUT ci
@@ -21,10 +20,10 @@ export async function GET() {
     `);
     const present = presentResult[0].present;
 
-    // غیر حاضر کی تعداد کا حساب کل سے موجودہ ملازمین کو منہا کرکے
+    // Calculate the number of absent employees
     const absent = totalEmployees - present;
 
-    // دیر سے آنے والوں کی تعداد (جو چیک ان وقت سے بعد آئے ہیں)
+    // Get the number of late arrivals
     const [lateArrivalsResult] = await db.query(`
       SELECT COUNT(DISTINCT ci.USERID) as late
       FROM CHECKINOUT ci
@@ -37,13 +36,19 @@ export async function GET() {
     `);
     const lateArrivals = lateArrivalsResult[0].late;
 
-    // آنے والے تعطیلات کی تعداد
-    const [upcomingHolidaysResult] = await db.query(
-      'SELECT COUNT(*) as upcoming FROM holidays WHERE date > NOW()'
-    );
+    // Get the number of upcoming holidays using HOLIDAYYEAR, HOLIDAYMONTH, HOLIDAYDAY
+    const [upcomingHolidaysResult] = await db.query(`
+      SELECT COUNT(*) as upcoming FROM holidays
+      WHERE STR_TO_DATE(
+        CONCAT(
+          HOLIDAYYEAR, '-',
+          LPAD(HOLIDAYMONTH, 2, '0'), '-',
+          LPAD(HOLIDAYDAY, 2, '0')
+        ), '%Y-%m-%d') > CURDATE()
+    `);
     const upcomingHolidays = upcomingHolidaysResult[0].upcoming;
 
-    // کل لیوز کی تعداد حاصل کریں
+    // Get the total number of leaves
     const [totalLeavesResult] = await db.query('SELECT COUNT(*) as totalLeaves FROM leaves');
     const totalLeaves = totalLeavesResult[0].totalLeaves;
 

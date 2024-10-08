@@ -30,6 +30,6 @@
     "src/app/api/attendance/[id]/route.ts",
     "src/app/employees/page.jsx",
     "src/app/api/attendance/export/route.js"
-, "src/app/api/ws/route.js"  ],
+, "src/app/api/ws/route.js", "src/app/api/holidays/route.js", "src/app/api/holidays/[id]/route.js", "src/app/api/holidays/route.js", "src/app/api/holidays/[id]/route.js", "src/app/api/holidays/route.js", "src/app/api/holidays/[id]/route.js"  ],
   "exclude": ["node_modules"]
 }
